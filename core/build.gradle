@@ -1,0 +1,5 @@
+dependencies {
+    compile project(':spongerecording-api')
+    compile 'com.googlecode.json-simple:json-simple:1.1'
+    provided 'io.netty:netty-all:4.0.30.Final'
+}

@@ -1,0 +1,6 @@
+rootProject.name = 'SpongeRecording'
+
+(['api', 'core', 'example', 'spongecommon']).each {
+    include it
+    project(":$it").name = 'spongerecording-' + it
+}

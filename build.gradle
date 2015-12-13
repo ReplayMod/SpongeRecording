@@ -1,0 +1,156 @@
+defaultTasks 'clean', 'build', 'allJar'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
+    }
+}
+
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+ext.projectName = 'SpongeRecording'
+ext.packaging = 'jar'
+ext.author = 'johni0702'
+ext.authorUrl = 'https://github.com/johni0702'
+ext.inceptionYear = '2015'
+
+ext.apiVersion = '1.0.0-SNAPSHOT'
+ext.implVersion = '0.1.0-SNAPSHOT'
+
+ext.spongeapi = 'org.spongepowered:spongeapi:2.1-SNAPSHOT'
+
+ext.platforms = ['spongecommon']
+
+project(':spongerecording-api').version = apiVersion
+(['core'] + platforms).each {
+    project(":spongerecording-$it").version = implVersion
+}
+
+(['api', 'core', 'example'] + platforms).each {
+    project(':spongerecording-' + it) {
+        apply plugin: 'java'
+        apply plugin: 'maven'
+        apply plugin: 'license'
+        apply plugin: 'idea'
+        apply plugin: 'eclipse'
+
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
+
+        group = 'com.replaymod.sponge'
+        ext.url = rootProject.authorUrl
+
+        license {
+            ext.name = rootProject.projectName
+            ext.author = rootProject.author
+            ext.url = rootProject.authorUrl
+            ext.year = rootProject.inceptionYear
+            header new File(rootProject.getProjectDir(), 'HEADER.txt')
+            sourceSets = project.sourceSets
+            ignoreFailures false
+            strictCheck true
+            mapping {
+                java = 'SLASHSTAR_STYLE'
+            }
+        }
+
+        repositories {
+            mavenCentral()
+            maven {
+                name 'Sponge maven repo'
+                url 'http://repo.spongepowered.org/maven'
+            }
+            maven {
+                // Artifacts we require are mirrored due to the lack of SNI support in gradle
+                name 'spacehq mirror repo'
+                url 'http://repo.johni0702.de/content/repositories/spacehq/'
+            }
+        }
+
+        configurations {
+            provided
+            compile.extendsFrom provided
+        }
+
+        jar {
+            dependsOn configurations.runtime
+            from {
+                (configurations.runtime - configurations.provided).collect {
+                    it.isDirectory() ? it : zipTree(it)
+                }
+            }
+            manifest {
+                attributes "Built-By": System.properties['user.name'],
+                        "Created-By": System.properties['java.vm.version'] + " (" + System.properties['java.vm.vendor'] + ")"
+            }
+        }
+
+        task sourcesJar(type: Jar, dependsOn: classes) {
+            classifier = "sources"
+            from sourceSets.main.allSource
+        }
+
+        task javadocJar(type: Jar, dependsOn: javadoc) {
+            classifier = "javadoc"
+            from javadoc.destinationDir
+        }
+
+        processResources {
+            from new File(rootProject.getProjectDir(), 'LICENSE')
+        }
+
+        artifacts {
+            archives jar
+            archives sourcesJar
+            archives javadocJar
+        }
+
+        build.dependsOn(sourcesJar)
+        build.dependsOn(javadocJar)
+
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    // mavenUrl has to be set in your {userfolder}/.gradle/gradle.properties file
+                    if (project.hasProperty("mavenUrl")) {
+                        repository(url: mavenUrl)
+                    }
+                    pom {
+                        groupId = project.group
+                        artifactId = project.name
+                        version = project.version
+                    }
+                }
+            }
+        }
+
+        dependencies {
+            provided 'org.spongepowered:spongeapi:2.1-SNAPSHOT'
+
+            testCompile group: 'junit', name: 'junit', version: '4.11'
+            testCompile 'org.mockito:mockito-core:1.10.19'
+        }
+    }
+}
+
+apply plugin: 'base'
+task allJar(type: Jar, dependsOn: (['core'] + platforms).collect {project(":spongerecording-$it").tasks['build']}) {
+    (['core'] + platforms).each {
+        from project(":spongerecording-$it").tasks.jar.outputs.files.collect {zipTree(it)}
+    }
+    manifest {
+        attributes "Built-By": System.properties['user.name'],
+                "Created-By": System.properties['java.vm.version'] + " (" + System.properties['java.vm.vendor'] + ")",
+                'Specification-Title': 'SpongeRecordingApi',
+                'Specification-Version': apiVersion,
+                'Specification-Vendor': authorUrl,
+                'Implementation-Title': 'SpongeRecording',
+                'Implementation-Version': implVersion,
+                'Implementation-Vendor': authorUrl
+
+    }
+}
